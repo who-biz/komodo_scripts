@@ -99,49 +99,69 @@ class BitcoinECDSADecker extends BitcoinECDSA {
         }
 
         $k          = $this->k;
-        
+
         while(strlen($k) < 64)
             $k = '0' . $k;
-        
+
         $secretKey  =  $this->getPrivatePrefix($PrivatePrefix) . $k;
-        
+
         if($compressed) {
             $secretKey .= '01';
         }
-        
+
         $secretKey .= substr($this->hash256(hex2bin($secretKey)), 0, 8);
 
         return $this->base58_encode($secretKey);
     }
+
+    /***
+     * returns the 32-byte chain-agnostic private key from input WIF
+     *
+     * @return string (hex)
+     * @throws \Exception
+     */
+     public function getAgnosticPrivKeyFromWIF($wif = '')
+     {
+       $fullSecretKey = "";
+       $truncated = "";
+
+       $fullSecretKey = $this->base58_decode($wif);
+       $truncated .= substr($fullSecretKey, 2, 64);
+
+       return $truncated;
+
+     }
 }
 
 $bitcoinECDSA = new BitcoinECDSADecker();
-
-$passphrase = "myverysecretandstrongpassphrase_noneabletobrute";
 
 /* available coins, you can add your own with params from src/chainparams.cpp */
 
 $coins = Array(
     Array("name" => "BTC",  "PUBKEY_ADDRESS" =>  0, "SECRET_KEY" => 128),
+    Array("name" => "LTC",  "PUBKEY_ADDRESS" => 48, "SECRET_KEY" => 176),
     Array("name" => "KMD",  "PUBKEY_ADDRESS" => 60, "SECRET_KEY" => 188),
     Array("name" => "GAME", "PUBKEY_ADDRESS" => 38, "SECRET_KEY" => 166),
     Array("name" => "HUSH", "PUBKEY_ADDRESS" => Array(0x1C,0xB8), "SECRET_KEY" => 0x80),
     Array("name" => "EMC2", "PUBKEY_ADDRESS" => 33, "SECRET_KEY" => 176),
     Array("name" => "GIN", "PUBKEY_ADDRESS" => 38, "SECRET_KEY" => 198),
     Array("name" => "AYA", "PUBKEY_ADDRESS" => 23, "SECRET_KEY" => 176),
-    Array("name" => "GleecBTC", "PUBKEY_ADDRESS" => 35, "SECRET_KEY" => 65),
 );
 
-$k = hash("sha256", $passphrase);
-$k = pack("H*",$k);
-$k[0] = Chr (Ord($k[0]) & 248); 
-$k[31] = Chr (Ord($k[31]) & 127); 
-$k[31] = Chr (Ord($k[31]) | 64);
-$k = bin2hex($k);
+
+// Change this to your KMD WIF
+$wif = '';
+
+//$k = hash("sha256", $passphrase);
+$passphrase = $bitcoinECDSA->getAgnosticPrivKeyFromWIF($wif);
+$k = $passphrase;
+//$k = pack("H*",$k);
+//$k[0] = Chr (Ord($k[0]) & 248); 
+//$k[31] = Chr (Ord($k[31]) & 127); 
+//$k[31] = Chr (Ord($k[31]) | 64);
+//$k = bin2hex($k);
 
 $bitcoinECDSA->setPrivateKey($k);
-// uncomment the line below if you want to calc everything from WIF, instead of passphrase
-// $bitcoinECDSA->setPrivateKeyWithWif("Uqe8cy26KvC2xqfh3aCpKvKjtoLC5YXiDW3iYf4MGSSy1RgMm3V5");
 echo "             Passphrase: '" . $passphrase . "'" . PHP_EOL;
 echo PHP_EOL;
 
