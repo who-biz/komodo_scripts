@@ -99,50 +99,141 @@ class BitcoinECDSADecker extends BitcoinECDSA {
         }
 
         $k          = $this->k;
-        
+
         while(strlen($k) < 64)
             $k = '0' . $k;
-        
+
         $secretKey  =  $this->getPrivatePrefix($PrivatePrefix) . $k;
-        
+
         if($compressed) {
             $secretKey .= '01';
         }
-        
+
         $secretKey .= substr($this->hash256(hex2bin($secretKey)), 0, 8);
 
         return $this->base58_encode($secretKey);
     }
+
+    /***
+     * returns the private key under the Wallet Import Format
+     *
+     * @return string (base58)
+     * @throws \Exception
+     */
+     public function getAgnosticPrivKeyFromWIF($wif = '')
+     {
+       $fullSecretKey = "";
+       $truncated = "";
+
+       $fullSecretKey = $this->base58_decode($wif);
+       $truncated .= substr($fullSecretKey, 2, 64);
+
+       return $truncated;
+
+     }
+
+     public function decodeBase58($pubkeyaddress = '')
+     {
+       return $this->base58_decode($pubkeyaddress);
+     }
+
+    /***
+     * returns the private key under the Wallet Import Format
+     *
+     * @return string (base58)
+     * @throws \Exception
+     */
+     public function getAgnosticPubKeyFromAddress($pubkeyaddress = '')
+     {
+       $compressedPublicKey = "";
+       $truncated = "";
+
+       $compressedPublicKey = $this->base58_decode($pubkeyaddress);
+       $truncated = substr($compressedPublicKey, 2, 40);
+
+       return $truncated;
+
+     }
+
+    public function generateAddressFromAgnosticPubKey($NetworkPrefix = '', $truncated = '')
+    {
+        $rawAddress    = hex2bin($truncated);
+
+        $fullPubKey = "";
+        $checksum = hex2bin($this->hash256($rawAddress));
+        $hexsum = bin2hex($checksum);
+        //$len = strlen(truncated);
+
+        echo " Checksum -- $hexsum " . PHP_EOL;
+
+        echo " NetworkPrefix -- $NetworkPrefix " . PHP_EOL;
+
+        $fullPubKey .= $NetworkPrefix;
+        $fullPubKey .= bin2hex($rawAddress);
+        $fullPubKeyHex ="";
+        $fullPubKeyHex = hex2bin($fullPubKey);
+
+        echo "fullPubKey -- $fullPubKey " . PHP_EOL;
+
+        $checksum = hex2bin($this->hash256($fullPubKeyHex));
+        $hexsum = bin2hex($checksum);
+
+        $append = "";
+        $append .= substr($hexsum,0,8);
+
+        $fullPubKey .= $append;
+
+        echo "fullPubKey -- $fullPubKey " . PHP_EOL;
+
+        echo " Checksum (w/networkbyte) -- $hexsum " . PHP_EOL;
+
+        $fullAddress = $this->base58_encode($fullPubKey);
+        return $fullAddress;
+    }
+
 }
 
 $bitcoinECDSA = new BitcoinECDSADecker();
 
-$passphrase = "myverysecretandstrongpassphrase_noneabletobrute";
-
 /* available coins, you can add your own with params from src/chainparams.cpp */
 
 $coins = Array(
-    Array("name" => "BTC",  "PUBKEY_ADDRESS" =>  0, "SECRET_KEY" => 128),
-    Array("name" => "KMD",  "PUBKEY_ADDRESS" => 60, "SECRET_KEY" => 188),
-    Array("name" => "GAME", "PUBKEY_ADDRESS" => 38, "SECRET_KEY" => 166),
-    Array("name" => "HUSH", "PUBKEY_ADDRESS" => Array(0x1C,0xB8), "SECRET_KEY" => 0x80),
-    Array("name" => "EMC2", "PUBKEY_ADDRESS" => 33, "SECRET_KEY" => 176),
-    Array("name" => "GIN", "PUBKEY_ADDRESS" => 38, "SECRET_KEY" => 198),
-    Array("name" => "AYA", "PUBKEY_ADDRESS" => 23, "SECRET_KEY" => 176),
-    Array("name" => "GleecBTC", "PUBKEY_ADDRESS" => 35, "SECRET_KEY" => 65),
+    Array("name" => "BTC",        "PUBKEY_ADDRESS" =>  0, "SECRET_KEY" => 128),
+    Array("name" => "LTC",        "PUBKEY_ADDRESS" => 48, "SECRET_KEY" => 176),
+    Array("name" => "KMD",        "PUBKEY_ADDRESS" => Array(0x3C), "SECRET_KEY" => 188),
+    Array("name" => "GAME",       "PUBKEY_ADDRESS" => 38, "SECRET_KEY" => 166),
+    Array("name" => "HUSH",       "PUBKEY_ADDRESS" => Array(0x1C,0xB8), "SECRET_KEY" => 0x80),
+    Array("name" => "EMC2",       "PUBKEY_ADDRESS" => 33, "SECRET_KEY" => 176),
+    Array("name" => "GIN",        "PUBKEY_ADDRESS" => 38, "SECRET_KEY" => 198),
+    Array("name" => "AYA",        "PUBKEY_ADDRESS" => 23, "SECRET_KEY" => 176),
+    Array("name" => "CHIPS_TEST", "PUBKEY_ADDRESS" => 111, "SECRET_KEY" => 239),
 );
 
-$k = hash("sha256", $passphrase);
-$k = pack("H*",$k);
-$k[0] = Chr (Ord($k[0]) & 248); 
-$k[31] = Chr (Ord($k[31]) & 127); 
-$k[31] = Chr (Ord($k[31]) | 64);
-$k = bin2hex($k);
+
+// Change this to your KMD Address
+$pubkeyaddress= '';
+//Change this to your KMD compressed WIF
+$wif = '';
+
+
+//don't touch anything else below
+$pubkeyadd = '';
+$pubkeyadd = $bitcoinECDSA->decodeBase58($pubkeyaddress);
+
+
+//$k = hash("sha256", $passphrase);
+$passphrase = $bitcoinECDSA->getAgnosticPrivKeyFromWIF($wif);
+
+$k = $passphrase;
+//$k = pack("H*",$k);
+//$k[0] = Chr (Ord($k[0]) & 248); 
+//$k[31] = Chr (Ord($k[31]) & 127); 
+//$k[31] = Chr (Ord($k[31]) | 64);
+//$k = bin2hex($k);
 
 $bitcoinECDSA->setPrivateKey($k);
-// uncomment the line below if you want to calc everything from WIF, instead of passphrase
-// $bitcoinECDSA->setPrivateKeyWithWif("Uqe8cy26KvC2xqfh3aCpKvKjtoLC5YXiDW3iYf4MGSSy1RgMm3V5");
 echo "             Passphrase: '" . $passphrase . "'" . PHP_EOL;
+echo "             Non-truncated: '" . $pubkeyadd . "'" . PHP_EOL;
 echo PHP_EOL;
 
 
@@ -154,6 +245,7 @@ if (is_array($coin["PUBKEY_ADDRESS"])) {
 } else
       $bitcoinECDSA->setNetworkPrefix(sprintf("%02X", $coin["PUBKEY_ADDRESS"])); 
 
+//$prefix = sprintf("%02X", $coin["PUBKEY_ADDRESS"]);
 // Returns the compressed public key. The compressed PubKey starts with 0x02 if it's y coordinate is even and 0x03 if it's odd, the next 32 bytes corresponds to the x coordinates.
 $NetworkPrefix = $bitcoinECDSA->getNetworkPrefix();
 
@@ -165,7 +257,7 @@ echo "            Private Key: " . $bitcoinECDSA->getPrivateKey() . PHP_EOL;
 echo "         Compressed WIF: " . $bitcoinECDSA->getWIF( true, $coin["SECRET_KEY"]) . PHP_EOL;
 echo "       Uncompressed WIF: " . $bitcoinECDSA->getWIF(false, $coin["SECRET_KEY"]) . PHP_EOL;
 
-$address = $bitcoinECDSA->getAddress(); //compressed Bitcoin address
+$address = $bitcoinECDSA->generateAddressFromAgnosticPubKey($NetworkPrefix, $bitcoinECDSA->getAgnosticPubKeyFromAddress($pubkeyaddress)); //compressed Bitcoin address
 echo "  Compressed Address: " . sprintf("%34s",$address) . PHP_EOL;
 $address = $bitcoinECDSA->getUncompressedAddress();
 echo "Uncompressed Address: " . sprintf("%34s",$address) . PHP_EOL;
